@@ -14,9 +14,11 @@ Include the most common geo-processing use cases in R.
 ### Task 1. Custermized a shape file (by dissolving s selected regions into one polygon)
 
 Below is a New York State County Map Downloaded from [here]( https://cugir.library.cornell.edu/catalog/cugir-007865). 
-<img src="img/img1.png" width="300" height="200">
+
+<img src="img/img1.png" width="350" height="200">
 
 Our Task is to make the New York City part of 5 regions to "dissolve" to become one region called "NYC" :
+
 Before: <img src="img/img2.png" width="300" height="200">
 After: <img src="img/img3.png" width="300" height="200">
 
