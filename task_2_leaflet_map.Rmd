@@ -1,0 +1,221 @@
+---
+title: "Task 2: Plot a New York State Map showing income status by counties"
+author: "Miao Wang"
+date: "9/22/2019"
+output: html_document
+---
+
+```
+Task 2: Plot a New York State Map showing income status by counties. 
+```
+
+- __Data__: 2017 - 5 year estimate for Medium Household Income. Downloaded from American Community Survey (ACS) [here] (https://factfinder.census.gov/faces/nav/jsf/pages/index.xhtml)
+
+```{r, include=FALSE}
+require(sf)
+require(tidyverse)
+require(leaflet)
+
+here::here() %>% setwd()
+```
+
+
+### Step 1. Download Data 
+
+```{r}
+# load nys shape file 
+nys_shape <- st_read(
+  dsn = "data/cugir-007865/",
+  layer = "cty036"
+)
+
+# income data
+dt <- read.csv("data/aff_download/ACS_17_5YR_S1902_with_ann.csv",
+               skip = 1) %>% janitor::clean_names()
+# head(dt, 5)
+# understand the colnames by 
+# meta <- read.csv("data/aff_download/ACS_17_5YR_S1902_metadata.csv")
+
+# clean up data 
+dt_cln <- dt %>% 
+  transmute(
+    COUNTY = substr(id2, 3, 5),
+    county_name = gsub("(County)|(,)|(New York)|( )", "", geography), 
+    county_name = if_else(county_name == "", "New York", county_name),
+    N_pop = number_estimate_all_households,
+    medium_income = mean_income_dollars_estimate_all_households_with_earnings_with_wages_or_salary_income)
+
+head(dt_cln)
+```
+
+
+### Step 2. Cleaning Shape File 
+
+```{r}
+
+# This part od codes are hidden
+# main goal is to de-duplicate rows 
+# so that nys_shape only has 1 row for 1 unique county
+# very similar idea of task 1
+
+nys_shape %>% count(NAME) %>% filter(n > 1)
+
+# get the ny part only 
+ny_shape <- nys_shape %>% filter(NAME == "New York") %>% 
+  distinct(NAME, COUNTY, geometry)
+
+# dissolved new york
+ny_shape_dissolved <- st_union(ny_shape) %>% 
+  st_sf() %>% 
+  cbind(NAME = "New York", COUNTY = "061")
+
+# get the bronx part only 
+bronx_shape <- nys_shape %>% filter(NAME == "Bronx") %>% 
+  distinct(NAME, COUNTY, geometry)
+
+# dissolved new york
+bronx_shape_dissolved <- st_union(bronx_shape) %>% 
+  st_sf() %>% 
+  cbind(NAME = "Bronx", COUNTY = "005")
+
+# get the sufflok part only 
+li_shape <- nys_shape %>% filter(NAME == "Suffolk") %>% 
+  distinct(NAME, COUNTY, geometry)
+
+
+# dissolve suffolk (3 rows originally)
+li_shape_dissolved <- st_union(li_shape) %>% 
+  st_sf() %>% 
+  cbind(NAME = "Suffolk", COUNTY = "103")
+  
+
+# get the sufflok part only (2 rows originally)
+wc_shape <- nys_shape %>% filter(NAME == "Westchester") %>% 
+  distinct(NAME, COUNTY, geometry)
+
+
+# dissolve suffolk
+wc_shape_dissolved <- st_union(wc_shape) %>% 
+  st_sf() %>% 
+  cbind(NAME = "Westchester", COUNTY = "119")
+
+
+# get the rest of state part 
+ros_shape <- nys_shape %>% 
+  filter(!NAME %in% c("Suffolk", "Westchester", "New York", "Bronx")) %>% 
+  distinct(NAME, COUNTY, geometry)
+
+
+# union with ros 
+nys_shape <- rbind(st_sf(ros_shape),
+                   st_sf(ny_shape_dissolved),
+                   st_sf(bronx_shape_dissolved),
+                   st_sf(li_shape_dissolved),
+                   st_sf(wc_shape_dissolved)
+                   )
+
+# check nrow
+nrow(nys_shape) # 62
+```
+
+### Step 3. Join with Shape File 
+
+- Note that to join a data frame with a sf object, it seems that the joining column has to have the same name
+- Do not forget to turn the data back to sf object
+
+```{r}
+class(nys_shape)
+class(dt_cln)
+
+# merge the data with shape file 
+dt_poly <- left_join(dt_cln, nys_shape, by = "COUNTY") %>% 
+  st_sf() # turn back to st_sf
+
+head(dt_poly)
+```
+
+
+### Step 4. Plot in Map using leaftlet 
+
+
+```{r}
+
+# color 
+hist(dt_poly$medium_income)
+quantile(dt_poly$medium_income, seq(0.1, 1, 0.1), na.rm = TRUE) %>% round()
+
+pal <- colorBin("Blues", 
+                domain = dt_poly$medium_income, 
+                bins = quantile(dt_poly$medium_income, seq(0.1, 1, 0.1), na.rm = TRUE))
+
+# title 
+title <- htmltools::HTML("<big><strong>Medium Income By County</strong></big>")
+
+# caption 
+caption <- htmltools::HTML("<small><strong>Notes:</strong/><br/><small>(1). Shape File Downloaded from https://cugir.library.cornell.edu/catalog/cugir-007865.<br/>(2). Income Data Donwloaded from ACS for 2017 5 year estimate.</small></small>")
+
+
+# label
+labels <- sprintf(
+  "<strong>%s</strong><br/>$medium income: %g<br/>%g population (used in the estimate)",
+  dt_poly$NAME, 
+  dt_poly$medium_income,
+  dt_poly$N_pop
+) %>% lapply(htmltools::HTML)
+
+# plot on leaflet
+m1 <- leaflet() %>% 
+  addProviderTiles(providers$Hydda.RoadsAndLabels) %>% 
+  addPolygons(
+    data = dt_poly,
+    fillColor = ~pal(medium_income), 
+    weight = 2, 
+    opacity = 1, 
+    color = "white", 
+    dashArray = "3",
+    fillOpacity = 0.7,
+    # highlight interation
+    highlight = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE),
+    # labels
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")
+  ) %>% 
+  # add legend 
+  addLegend(data = dt_poly,
+            title = "Medium Household Income",
+            pal = pal,
+            values = ~(medium_income), 
+            opacity = 0.7, 
+            labFormat = labelFormat(prefix = "$"),
+            position = "bottomright") %>% 
+  # # add back the opoid treatment 
+  # addMarkers(data = opioid_add,
+  #            ~longitude, 
+  #            ~latitude, 
+  #            popup = ~sprintf(
+  #              "<strong>Provider: </strong> %s<br/><strong>Program: </strong> %s",
+  #              opioid_add$PROVIDER_NAME, 
+  #              opioid_add$PROGRAM_NAME
+  #            )) %>% 
+  # add Title 
+  addControl(html = title, position = "topright") %>% 
+  # add caption 
+  addControl(html = caption, position = "bottomleft") %>% 
+  # remove leaflet ink 
+  htmlwidgets::onRender("var map = L.map('map', { attributionControl:false });")
+
+m1
+# save: 
+# mapview::mapshot(m1, url = "map_v1.html")
+
+```
+
+

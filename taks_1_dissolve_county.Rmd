@@ -1,0 +1,75 @@
+---
+title: 'Task 1: Dissolving NYS County Shape Files'
+author: "MW"
+output: 
+  html_document:
+    toc: true
+    theme: cosmo
+---
+
+
+```
+Task: I want to dissolve the five counties in NYC: Queens, Kings, Bronx, New York, Richmond to be one polygon called "NYC" 
+```
+
+- __Data__: The New York State County Shape File was downloaded [here]( https://cugir.library.cornell.edu/catalog/cugir-007865)
+- __R libraries__:
+  - [sf: geo process tools in R](https://github.com/r-spatial/sf)
+  - [tidyverse: data manipulation tools (dplyr)](https://www.tidyverse.org)
+  - [leaflet: plot maps in R](https://rstudio.github.io/leaflet/)
+
+
+### Step 1: Loading Packages and Data 
+- plot the shape file to check if the shape file is properly loaded
+- for shape file to load properly, it is important to keep all files in the folder available (.dbf, .prj, .sbn, .shp etc). 
+
+```{r}
+require(sf)
+require(tidyverse)
+require(leaflet)
+
+# nys shape file 
+nys_shape <- st_read(
+  dsn = "data/cugir-007865/",
+  layer = "cty036"
+)
+
+leaflet(nys_shape) %>% addPolygons() # checking
+```
+
+
+### Step 2. Dissolve NYC Region Counties 
+- key steps: only extract the NYC Regions and use function `st_union` to dissolve the entire area 
+```{r}
+# get the nyc part only 
+nyc_shape <- nys_shape %>% filter(NAME %in% c("Bronx", "Queens", "Kings", "New York", "Richmond")) %>% 
+  distinct(NAME, COUNTY, geometry)
+
+leaflet(nyc_shape) %>% addPolygons() # checking 
+
+
+# dissolve nyc 
+nyc_shape_dissolved <- st_union(nyc_shape) %>% 
+  st_sf() %>% 
+  cbind(NAME = "New York City", COUNTY = "061")
+
+leaflet(nyc_shape_dissolved) %>% addPolygons() # checking
+```
+
+### Step 3. Paste the NYC Region with the "rest of state" counties
+
+```{r}
+# get the rest of state part 
+ros_shape <- nys_shape %>% 
+  filter(!NAME %in% c("Bronx", "Queens", "Kings", "New York", "Richmond")) %>% 
+  distinct(NAME, COUNTY, geometry)
+leaflet(ros_shape) %>% addPolygons() # checking 
+
+
+# union with ros 
+nys_dissolved <- rbind(st_sf(ros_shape), 
+                       st_sf(nyc_shape_dissolved))
+
+leaflet(nys_dissolved) %>% addPolygons() # checking
+```
+
