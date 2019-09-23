@@ -30,4 +30,4 @@ After: <img src="img/img3.png" width="300" height="200">
 Our Task is to create a map showing the income level by county: 
 <img src="img/img4.png" width="800" height="500">
 
-[interactive link](img/img/map_v1.html)
+To view the full interactive map: download the map located in: img/img/map_v1.html
