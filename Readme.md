@@ -14,15 +14,15 @@ Include the most common geo-processing use cases in R.
 ### Task 1. Custermized a shape file (by dissolving s selected regions into one polygon)
 
 Below is a New York State County Map Downloaded from [here]( https://cugir.library.cornell.edu/catalog/cugir-007865). 
-![](img/img1.png){:height="200px" width="200px"}
+<img src="img/img1.png" width="300" height="200">
 
 Our Task is to make the New York City part of 5 regions to "dissolve" to become one region called "NYC" :
-![Before](img/img2.png){:height="100px" width="100px"}
-![After](img/img3.png){:height="100px" width="100px"}
+Before: <img src="img/img2.png" width="300" height="200">
+After: <img src="img/img3.png" width="300" height="200">
+
 
 
 
 ### Task 2. Create a leaftlet Map
 
-Our Task is to create a map showing the income level by county: 
-![](img/map_v1.html)
+Our Task is to create a map showing the income level by county: [here](img/img/map_v1.html)
