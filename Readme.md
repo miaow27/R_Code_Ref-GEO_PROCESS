@@ -27,4 +27,7 @@ After: <img src="img/img3.png" width="300" height="200">
 
 ### Task 2. Create a leaftlet Map
 
-Our Task is to create a map showing the income level by county: [here](img/img/map_v1.html)
+Our Task is to create a map showing the income level by county: 
+<img src="img/img4.png" width="800" height="500">
+
+[interactive link](img/img/map_v1.html)
